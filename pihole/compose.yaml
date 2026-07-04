@@ -1,0 +1,47 @@
+---
+# Pi-hole v6 — LAN DNS + ad-blocking (architecture/003). One of the
+# three stacks allowed published ports (STD-002 rule 3): port 53. The
+# split-horizon wildcard (*.kirito.com → the Pi) is Git-managed in
+# config/99-kirito.conf — never clicked into the UI.
+name: pihole
+services:
+  pihole:
+    image: pihole/pihole:2025.04.0
+    container_name: pihole
+    restart: unless-stopped
+    env_file:
+      - path: /srv/homelab/secrets/pihole.env
+        required: false
+    environment:
+      # Non-secret runtime config lives here, Git-managed (ADR-008 keeps
+      # only credentials in the env file).
+      FTLCONF_dns_upstreams: 1.1.1.1;9.9.9.9
+      FTLCONF_dns_listeningMode: all
+      FTLCONF_misc_etc_dnsmasq_d: "true"
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 1.0
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+    healthcheck:
+      test: ["CMD", "dig", "+short", "+timeout=2", "@127.0.0.1", "pi.hole"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ${DATA_ROOT}/pihole/etc:/etc/pihole
+      - ${DATA_ROOT}/pihole/dumps:/dumps
+      - ./config/99-kirito.conf:/etc/dnsmasq.d/99-kirito.conf:ro
+    networks: [net_proxy]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.pihole.rule: Host(`dns.kirito.com`)
+      traefik.http.routers.pihole.entrypoints: websecure
+      traefik.http.routers.pihole.middlewares: authelia@file
+      traefik.http.services.pihole.loadbalancer.server.port: "80"
+      homepage.group: Infrastructure
+      homepage.name: Pi-hole
+      kirito.backup: "true"
+networks:
+  net_proxy: {external: true}

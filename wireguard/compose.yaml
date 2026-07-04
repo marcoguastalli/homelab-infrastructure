@@ -1,0 +1,50 @@
+---
+# wg-easy — WireGuard server + peer-management UI (architecture/003).
+# The ONLY internet-facing listener on the whole platform: the router
+# forwards UDP 51820 here, nothing else. The UI (51821) is not
+# published — it is reachable only via Traefik behind two_factor.
+name: wireguard
+services:
+  wireguard:
+    image: ghcr.io/wg-easy/wg-easy:14
+    container_name: wireguard
+    restart: unless-stopped
+    env_file:
+      - path: /srv/homelab/secrets/wireguard.env
+        required: false
+    environment:
+      WG_PORT: "51820"
+      # VPN clients use Pi-hole: same split-horizon + ad-blocking as LAN.
+      WG_DEFAULT_DNS: 192.168.1.10
+      WG_DEFAULT_ADDRESS: 10.8.0.x
+    # NET_ADMIN: WireGuard interface + NAT rules inside the container.
+    # SYS_MODULE: loads the (in-kernel) wireguard module on first start.
+    # Documented exception to the no-extra-caps rule (architecture/004).
+    cap_add: [NET_ADMIN, SYS_MODULE]
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.ipv4.conf.all.src_valid_mark: 1
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 1.0
+    ports:
+      - "51820:51820/udp"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:51821/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ${DATA_ROOT}/wireguard:/etc/wireguard
+    networks: [net_proxy]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.wireguard.rule: Host(`vpn.kirito.com`)
+      traefik.http.routers.wireguard.entrypoints: websecure
+      traefik.http.routers.wireguard.middlewares: authelia@file
+      traefik.http.services.wireguard.loadbalancer.server.port: "51821"
+      homepage.group: Infrastructure
+      homepage.name: WireGuard
+      kirito.backup: "true"
+networks:
+  net_proxy: {external: true}

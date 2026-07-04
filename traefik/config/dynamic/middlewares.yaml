@@ -1,0 +1,40 @@
+---
+# Shared middlewares (STD-003). New shared middlewares are added here
+# AND to STD-003 in the same PR.
+
+http:
+  middlewares:
+    # Security headers + rate limiting, applied to every websecure router
+    # via the entrypoint default (traefik.yaml). No HSTS while the cert
+    # is self-signed (ADR-011).
+    secured:
+      chain:
+        middlewares:
+          - security-headers
+          - rate-limit
+
+    security-headers:
+      headers:
+        frameDeny: false
+        customFrameOptionsValue: SAMEORIGIN
+        contentTypeNosniff: true
+        referrerPolicy: strict-origin-when-cross-origin
+        browserXssFilter: true
+
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+
+    # forwardAuth → Authelia (ADR-003). Applied per-router via labels,
+    # per the auth-policy table in architecture/005.
+    authelia:
+      forwardAuth:
+        address: >-
+          http://authelia:9091/api/verify?rd=https://auth.kirito.com/
+        trustForwardHeader: true
+        authResponseHeaders:
+          - Remote-User
+          - Remote-Groups
+          - Remote-Name
+          - Remote-Email

@@ -1,0 +1,36 @@
+---
+# Authelia — SSO + 2FA portal (ADR-003). Every admin surface routes
+# through its forwardAuth middleware (authelia@file, defined in
+# traefik/config/dynamic/middlewares.yaml). Auth policy table:
+# homelab-docs architecture/005.
+name: authelia
+services:
+  authelia:
+    image: authelia/authelia:4.38.17
+    container_name: authelia
+    restart: unless-stopped
+    env_file:
+      - path: /srv/homelab/secrets/authelia.env
+        required: false
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD", "/app/healthcheck.sh"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ./config/configuration.yml:/config/configuration.yml:ro
+      - ${DATA_ROOT}/authelia:/data
+    networks: [net_proxy]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.authelia.rule: Host(`auth.kirito.com`)
+      traefik.http.routers.authelia.entrypoints: websecure
+      traefik.http.services.authelia.loadbalancer.server.port: "9091"
+      homepage.group: Infrastructure
+      homepage.name: Authelia
+      kirito.backup: "true"
+networks:
+  net_proxy: {external: true}

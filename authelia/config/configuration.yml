@@ -1,0 +1,62 @@
+---
+# Authelia configuration (ADR-003). Secrets come from the environment
+# (/srv/homelab/secrets/authelia.env — ADR-008): session secret, storage
+# encryption key, reset-password JWT secret. Users live in
+# /data/users_database.yml on the Pi (see users_database.yml.example).
+
+theme: dark
+
+server:
+  address: tcp://0.0.0.0:9091
+
+log:
+  level: info
+
+totp:
+  issuer: kirito.com
+
+authentication_backend:
+  file:
+    path: /data/users_database.yml
+    # argon2id defaults are fine at this scale.
+
+# Auth policy per homelab-docs architecture/005. default_policy deny:
+# a service added without a rule here is unreachable, not open.
+access_control:
+  default_policy: deny
+  rules:
+    - domain:
+        - traefik.kirito.com
+        - dns.kirito.com
+        - vpn.kirito.com
+        - dockge.kirito.com
+        - prometheus.kirito.com
+        - alerts.kirito.com
+        - backup.kirito.com
+      policy: two_factor
+    - domain:
+        - home.kirito.com
+        - grafana.kirito.com
+        - status.kirito.com
+      policy: one_factor
+
+session:
+  cookies:
+    - domain: kirito.com
+      authelia_url: https://auth.kirito.com
+      default_redirection_url: https://home.kirito.com
+
+regulation:
+  max_retries: 3
+  find_time: 2m
+  ban_time: 5m
+
+storage:
+  local:
+    path: /data/db.sqlite3
+
+# No mail server on the platform: 2FA enrolment links and password-reset
+# tokens land in this file (read it via SSH or Dockge logs).
+notifier:
+  filesystem:
+    filename: /data/notification.txt

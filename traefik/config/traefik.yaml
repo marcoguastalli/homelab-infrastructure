@@ -1,0 +1,45 @@
+---
+# Traefik static configuration (STD-003). Changes here need a container
+# restart; dynamic config (./dynamic/) is watched and hot-reloads.
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+    http:
+      tls: {}
+      middlewares:
+        - secured@file
+  metrics:
+    address: ":8082"
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: net_proxy
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+api:
+  dashboard: true
+  insecure: false
+
+ping: {}
+
+metrics:
+  prometheus:
+    entryPoint: metrics
+
+log:
+  level: INFO
+
+# No accessLog: SSD protection (STD-002 rule 13); Prometheus metrics
+# cover traffic visibility (architecture/006).

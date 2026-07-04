@@ -1,0 +1,44 @@
+---
+# Traefik — the single ingress (ADR-002). The only stack allowed to
+# publish 80/443 (STD-002 rule 3). Config is split per STD-003: static +
+# shared dynamic from this directory (Git-managed), per-service routing
+# via labels in each service's own compose file.
+name: traefik
+services:
+  traefik:
+    image: traefik:v3.3.3
+    container_name: traefik
+    restart: unless-stopped
+    # No secrets needed; the file must still exist on the Pi (deploy.sh
+    # contract). required:false keeps CI's config-render green.
+    env_file:
+      - path: /srv/homelab/secrets/traefik.env
+        required: false
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 1.0
+    ports:
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - ./config/dynamic:/etc/traefik/dynamic:ro
+      - /srv/homelab/secrets/tls:/certs:ro
+    networks: [net_proxy, net_monitoring]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.traefik.rule: Host(`traefik.kirito.com`)
+      traefik.http.routers.traefik.entrypoints: websecure
+      traefik.http.routers.traefik.middlewares: authelia@file
+      traefik.http.routers.traefik.service: api@internal
+      homepage.group: Infrastructure
+      homepage.name: Traefik
+networks:
+  net_proxy: {external: true}
+  net_monitoring: {external: true}
