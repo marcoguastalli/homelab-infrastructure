@@ -38,6 +38,7 @@ access_control:
         - home.kirito.com
         - grafana.kirito.com
         - status.kirito.com
+        - bookmarks.kirito.com
       policy: one_factor
 
 session:
