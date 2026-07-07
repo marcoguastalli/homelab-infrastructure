@@ -23,7 +23,7 @@ rule 2). Every version in this repo, and its coupling:
 | Pin | File(s) | Coupling to watch |
 |---|---|---|
 | Service images | `<stack>/compose.yaml` `image:` lines | — |
-| Dump-helper image | `alpine:3.21` in `authelia/dump.sh` | Same pin in `homelab-services/{monitoring,uptime-kuma}/dump.sh` — bump all three together |
+| Dump-helper image | `alpine:3.21` in `authelia/dump.sh` | Same pin in `homelab-services` (`monitoring/dump.sh`, `monitoring/prepare.sh`, `uptime-kuma/dump.sh`) — bump all four together |
 | Traefik config schema | `traefik/config/traefik.yaml` + `config/dynamic/*.yaml` | Version-coupled to the image major (v2→v3 was a syntax break) — re-read both when crossing a major |
 | Authelia config schema | `authelia/config/configuration.yml` | Authelia renames/deprecates config keys between **minors**; also `users_database.yml` on the Pi must stay parseable |
 | Reusable workflows | `.github/workflows/{ci,deploy}.yml` reference `homelab-ops@main` | Deliberately unpinned — ops main is the platform contract |
@@ -60,6 +60,10 @@ Per-stack steps:
      each window. Majors have historically reworked the config format
      (migration!); confirm arm64 in the release. Breaking WireGuard or
      Pi-hole can cut off *remote* access — bump these from the LAN too.
+     The `entrypoint:` override in `wireguard/compose.yaml` forces the
+     nft iptables backend (Pi kernels have no legacy modules) and
+     restates the image CMD — on any bump, check whether the new image
+     defaults to nft (drop the override) or changed its CMD (restate).
 3. **Bump the pin** (and any coupled file from the table).
 4. **Validate locally** (CI-identical — see commands below).
 5. **PR** using the template: "which stacks redeploy" = the bumped
