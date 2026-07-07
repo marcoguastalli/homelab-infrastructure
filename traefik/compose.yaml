@@ -6,7 +6,10 @@
 name: traefik
 services:
   traefik:
-    image: traefik:v3.3.3
+    # v3.7.6: v3.3.x's Docker provider speaks API 1.24, which Docker
+    # Engine >= 29 rejects (min 1.40) — the provider never connects and
+    # no label-based routers exist (every host rule 404s).
+    image: traefik:v3.7.6
     container_name: traefik
     restart: unless-stopped
     # No secrets needed; the file must still exist on the Pi (deploy.sh
