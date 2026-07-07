@@ -14,9 +14,26 @@ services:
         required: false
     environment:
       WG_PORT: "51820"
-      # VPN clients use Pi-hole: same split-horizon + ad-blocking as LAN.
-      WG_DEFAULT_DNS: 192.168.1.10
+      # WG_DEFAULT_DNS (Pi-hole's LAN IP — split-horizon + ad-blocking
+      # for VPN clients) is site-specific and lives in the secrets env
+      # file, not here (see .env.example).
       WG_DEFAULT_ADDRESS: 10.8.0.x
+    # The Pi's kernel ships nft-only (no legacy ip_tables/iptable_nat
+    # modules), but this image's v4 iptables tools default to the legacy
+    # backend — wg-easy then dies with "can't initialize iptables table
+    # 'nat'" and restart-loops. Re-point them to xtables-nft-multi (the
+    # ip6tables set already links there) before the stock entrypoint.
+    # Overriding entrypoint clears the image CMD, so it is restated.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        ln -sf xtables-nft-multi /usr/sbin/iptables
+        ln -sf xtables-nft-multi /usr/sbin/iptables-save
+        ln -sf xtables-nft-multi /usr/sbin/iptables-restore
+        exec docker-entrypoint.sh "$@"
+      - sh
+    command: [/usr/bin/dumb-init, node, server.js]
     # NET_ADMIN: WireGuard interface + NAT rules inside the container.
     # SYS_MODULE: loads the (in-kernel) wireguard module on first start.
     # Documented exception to the no-extra-caps rule (architecture/004).
