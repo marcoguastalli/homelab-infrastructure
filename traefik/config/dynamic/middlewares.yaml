@@ -33,6 +33,10 @@ http:
         address: >-
           http://authelia:9091/api/verify?rd=https://auth.kirito.com/
         trustForwardHeader: true
+        # Authelia's verify response is headers-only; cap it so a
+        # misbehaving/compromised upstream can't stream an unbounded
+        # body through Traefik (DoS/memory exhaustion).
+        maxResponseBodySize: 10485760
         authResponseHeaders:
           - Remote-User
           - Remote-Groups
